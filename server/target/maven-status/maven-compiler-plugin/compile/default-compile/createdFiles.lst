@@ -3,6 +3,7 @@ com/babybreakfast/auth/dto/LoginRequest.class
 com/babybreakfast/ingredient/IngredientController.class
 com/babybreakfast/ingredient/dto/UpdateIngredientRequest.class
 com/babybreakfast/BabyBreakfastApplication.class
+com/babybreakfast/auth/AuthException.class
 com/babybreakfast/ingredient/IngredientService.class
 com/babybreakfast/member/dto/MemberDTO.class
 com/babybreakfast/common/FileUploadController.class

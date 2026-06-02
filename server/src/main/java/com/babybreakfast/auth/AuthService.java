@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
 
-    private static final SessionUserResponse DEMO_USER = new SessionUserResponse(1L, "lingyun", "凌云");
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD = "admin123";
+
     private final MemberService memberService;
 
     public AuthService(MemberService memberService) {
@@ -22,6 +24,9 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        if (!ADMIN_USERNAME.equals(request.username()) || !ADMIN_PASSWORD.equals(request.password())) {
+            throw new AuthException("用户名或密码错误");
+        }
         List<MemberDTO> allMembers = memberService.findAll();
         MemberDTO member = allMembers.stream()
                 .filter(m -> "parent".equals(m.role()))
@@ -57,9 +62,9 @@ public class AuthService {
                 .map(FamilyMemberResponse::fromMemberDTO)
                 .toList();
         return new AuthResponse(
-                "demo-token-001",
-                DEMO_USER,
-                new FamilyResponse(1L, "凌云一家", memberSummaries),
+                "token-" + System.currentTimeMillis(),
+                new SessionUserResponse(1L, "admin", "管理员"),
+                new FamilyResponse(1L, "默认家庭", memberSummaries),
                 FamilyMemberResponse.fromMemberDTO(currentMember)
         );
     }

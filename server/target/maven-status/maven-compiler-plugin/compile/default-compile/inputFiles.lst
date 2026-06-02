@@ -1,6 +1,7 @@
 /workspace/server/src/main/java/com/babybreakfast/BabyBreakfastApplication.java
 /workspace/server/src/main/java/com/babybreakfast/api/HealthController.java
 /workspace/server/src/main/java/com/babybreakfast/auth/AuthController.java
+/workspace/server/src/main/java/com/babybreakfast/auth/AuthException.java
 /workspace/server/src/main/java/com/babybreakfast/auth/AuthService.java
 /workspace/server/src/main/java/com/babybreakfast/auth/dto/AuthResponse.java
 /workspace/server/src/main/java/com/babybreakfast/auth/dto/FamilyMemberResponse.java

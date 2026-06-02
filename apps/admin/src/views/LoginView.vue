@@ -83,6 +83,8 @@ async function handleLogin() {
               {{ loading ? '登录中...' : '登 录' }}
             </button>
           </div>
+
+          <p class="demo-hint">演示账号：admin / admin123</p>
         </div>
       </div>
     </div>
@@ -237,6 +239,13 @@ async function handleLogin() {
 .submit-btn.loading {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.demo-hint {
+  margin-top: 20px;
+  font-size: 13px;
+  color: #bbb;
+  text-align: center;
 }
 
 @media (max-width: 900px) {
