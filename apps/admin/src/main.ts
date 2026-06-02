@@ -4,6 +4,7 @@ import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import App from './App.vue';
+import AdminLayout from './views/AdminLayout.vue';
 import LoginView from './views/LoginView.vue';
 import DashboardView from './views/DashboardView.vue';
 import TodayRecipeView from './views/recipe/TodayRecipeView.vue';
@@ -31,10 +32,14 @@ import SystemParamsView from './views/system/SystemParamsView.vue';
 import SystemBackupView from './views/system/SystemBackupView.vue';
 
 const routes = [
-  { path: '/login', component: LoginView, meta: { title: '登录' } },
+  {
+    path: '/login',
+    component: LoginView,
+    meta: { title: '登录' },
+  },
   {
     path: '/',
-    component: App,
+    component: AdminLayout,
     redirect: { name: 'Dashboard' },
     children: [
       { path: 'dashboard', name: 'Dashboard', component: DashboardView, meta: { title: '数据概览' } },
