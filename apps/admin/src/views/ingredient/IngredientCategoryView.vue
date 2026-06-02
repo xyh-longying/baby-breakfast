@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { UploadProps } from 'element-plus'
+import type { UploadProps, UploadFile } from 'element-plus'
 
 interface Category {
   id?: number
@@ -35,6 +35,9 @@ const form = reactive<Category>({
   aliases: ''
 })
 
+// 系统主题橙色
+const themeOrange = '#E67E22'
+
 const defaultCategories = [
   { name: '主食杂粮', code: 'staple', parentCode: '', sortOrder: 1, icon: '🍚', color: '#F59E0B', aliases: '谷物,米面' },
   { name: '蛋奶豆类', code: 'egg_dairy', parentCode: '', sortOrder: 2, icon: '🥚', color: '#FEF3C7', aliases: '鸡蛋,牛奶,豆腐' },
@@ -49,11 +52,18 @@ const defaultCategories = [
 
 const emojiOptions = [
   '🍚', '🥚', '🥩', '🐟', '🥬', '🍎', '🥜', '🧂', '📦',
-  '🍞', '🧀', '🥛', '🍗', '🦐', '🥕', '🍌', '🥜', '🫒',
-  '🌾', '🥔', '🍠', '🌽', '🥑', '🍇', '🍊', '🍋', '🫐'
+  '🍞', '🧀', '🥛', '🍗', '🦐', '🥕', '🍌', '🫒',
+  '🌾', '🥔', '🍠', '🌽', '🥑', '🍇', '🍊', '🍋', '🫐',
+  '🥣', '🍜', '🥗', '🧈', '🫙'
 ]
 
 const showEmojiPicker = ref(false)
+
+// 判断是否为图片URL（支持 http/https/blob/data）
+function isImageUrl(val: string): boolean {
+  if (!val) return false
+  return val.startsWith('http') || val.startsWith('blob:') || val.startsWith('data:')
+}
 
 const treeData = computed<TreeNode[]>(() => {
   const topLevel = list.value.filter(item => !item.parentCode || item.parentCode === '')
@@ -177,26 +187,22 @@ function selectEmoji(emoji: string) {
   showEmojiPicker.value = false
 }
 
-const handleAvatarSuccess: UploadProps['onSuccess'] = (
-  response,
-  uploadFile
-) => {
-  form.icon = URL.createObjectURL(uploadFile.raw!)
-}
-
-function beforeUpload(rawFile: File) {
+// 处理图片上传选择（本地预览，不上传服务器）
+function handleImageChange(uploadFile: UploadFile) {
+  const rawFile = uploadFile.raw
+  if (!rawFile) return
   const isImage = rawFile.type.startsWith('image/')
   const isLt2M = rawFile.size / 1024 / 1024 < 2
-
   if (!isImage) {
     ElMessage.error('只能上传图片文件!')
-    return false
+    return
   }
   if (!isLt2M) {
     ElMessage.error('图片大小不能超过 2MB!')
-    return false
+    return
   }
-  return true
+  // 创建本地预览 URL (blob:)
+  form.icon = URL.createObjectURL(rawFile)
 }
 
 onMounted(fetchData)
@@ -206,7 +212,7 @@ onMounted(fetchData)
   <div class="page-container">
     <div class="page-header">
       <h2>食材分类管理</h2>
-      <el-button type="primary" @click="handleAdd">
+      <el-button class="btn-orange" @click="handleAdd">
         <span style="margin-right: 4px">+</span> 新增分类
       </el-button>
     </div>
@@ -214,7 +220,7 @@ onMounted(fetchData)
     <el-table :data="list" v-loading="loading" border stripe style="width: 100%">
       <el-table-column label="图标" width="80" align="center">
         <template #default="{ row }">
-          <img v-if="row.icon && row.icon.startsWith('http')" :src="row.icon" class="icon-img" />
+          <img v-if="isImageUrl(row.icon)" :src="row.icon" class="icon-img" />
           <span v-else class="icon-cell">{{ row.icon || '—' }}</span>
         </template>
       </el-table-column>
@@ -270,7 +276,7 @@ onMounted(fetchData)
         <el-form-item label="图标">
           <div class="icon-selector">
             <div class="icon-preview-area">
-              <img v-if="form.icon && form.icon.startsWith('http')" :src="form.icon" class="preview-img" />
+              <img v-if="isImageUrl(form.icon)" :src="form.icon" class="preview-img" />
               <span v-else class="preview-icon">{{ form.icon || '暂无图标' }}</span>
             </div>
             <div class="icon-actions">
@@ -279,7 +285,7 @@ onMounted(fetchData)
                 action="#"
                 :show-file-list="false"
                 :auto-upload="false"
-                :on-change="(file: any) => { if(beforeUpload(file.raw)) { form.icon = URL.createObjectURL(file.raw) } }"
+                :on-change="handleImageChange"
                 accept="image/*"
               >
                 <el-button size="small">上传图片</el-button>
@@ -315,7 +321,7 @@ onMounted(fetchData)
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button class="btn-orange" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -341,6 +347,19 @@ onMounted(fetchData)
   font-size: 20px;
   font-weight: 600;
   color: #1f2937;
+}
+
+/* 系统主题橙色按钮 */
+.btn-orange {
+  background-color: #E67E22 !important;
+  border-color: #E67E22 !important;
+  color: #fff !important;
+}
+
+.btn-orange:hover,
+.btn-orange:focus {
+  background-color: #D35400 !important;
+  border-color: #D35400 !important;
 }
 
 .icon-cell {
