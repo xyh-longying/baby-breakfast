@@ -6,8 +6,8 @@ com/babybreakfast/BabyBreakfastApplication.class
 com/babybreakfast/ingredient/IngredientService.class
 com/babybreakfast/member/dto/MemberDTO.class
 com/babybreakfast/common/FileUploadController.class
-com/babybreakfast/auth/dto/FamilyResponse.class
 com/babybreakfast/auth/AuthController.class
+com/babybreakfast/auth/dto/FamilyResponse.class
 com/babybreakfast/category/dto/UpdateIngredientCategoryRequest.class
 com/babybreakfast/category/IngredientCategoryController.class
 com/babybreakfast/auth/AuthService.class
