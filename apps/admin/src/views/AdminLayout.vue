@@ -15,7 +15,7 @@ import {
 } from '@element-plus/icons-vue';
 import type { Component } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { ElMessageBox } from 'element-plus';
+import { ElMessageBox, ElDropdownMenu, ElDropdownItem, ElDropdown } from 'element-plus';
 
 interface SubMenuItem {
   path: string;
@@ -137,6 +137,12 @@ function handleLogout() {
   });
 }
 
+function handleCommand(command: string) {
+  if (command === 'logout') {
+    handleLogout();
+  }
+}
+
 const session = computed(() => {
   try {
     return JSON.parse(localStorage.getItem('session') || '{}');
@@ -149,11 +155,10 @@ const session = computed(() => {
 <template>
   <el-container class="admin-layout">
     <el-aside width="240px" class="sidebar">
-      <div class="logo">
-        <span class="logo-icon">🍳</span>
-        <span class="logo-text">宝贝早餐管理后台</span>
+      <div class="logo-area">
+        <!-- Logo 预留位置 -->
       </div>
-      
+
       <el-menu
         :default-active="activeMenu"
         background-color="transparent"
@@ -190,17 +195,28 @@ const session = computed(() => {
             <el-breadcrumb-item>{{ $route.meta.title || route.name }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        <div class="header-right">
-          <div class="user-info">
-            <el-avatar :size="36" :icon="UserIcon" />
-            <div class="user-details">
-              <div class="user-name">{{ session?.user?.displayName || '管理员' }}</div>
-              <div class="user-family">{{ session?.currentFamily?.name || '未选择家庭' }}</div>
-            </div>
+
+        <el-dropdown trigger="click" class="user-dropdown" @command="handleCommand">
+          <div class="user-trigger">
+            <el-avatar :size="32" :icon="UserIcon" />
+            <span class="user-name">{{ session?.user?.displayName || '管理员' }}</span>
+            <span class="family-name">{{ session?.currentFamily?.name || '' }}</span>
           </div>
-          <el-divider direction="vertical" />
-          <el-button :icon="LogoutIcon" circle @click="handleLogout" title="退出登录" />
-        </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item disabled class="user-profile-item">
+                <div class="profile-info">
+                  <div class="profile-name">{{ session?.user?.displayName || '管理员' }}</div>
+                  <div class="profile-family">{{ session?.currentFamily?.name || '未选择家庭' }}</div>
+                </div>
+              </el-dropdown-item>
+              <el-dropdown-item divided command="logout">
+                <el-icon :size="14"><SwitchButton /></el-icon>
+                退出系统
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </el-header>
 
       <el-main class="main-content">
@@ -218,26 +234,15 @@ const session = computed(() => {
 .sidebar {
   background: linear-gradient(180deg, #FF9F43 0%, #FF8E2E 100%);
   overflow-y: auto;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
 }
 
-.logo {
+.logo-area {
   height: 64px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.logo-icon {
-  font-size: 32px;
-}
-
-.logo-text {
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
+  justify-content: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .el-menu {
@@ -271,54 +276,70 @@ const session = computed(() => {
 }
 
 .header {
-  background: #FFF8F0;
-  border-bottom: 1px solid #FFE5D0;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  height: 60px;
+  height: 56px;
 }
 
 .header-left {
   flex: 1;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.user-dropdown {
+  cursor: pointer;
 }
 
-.user-info {
+.user-trigger {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  background: #fff;
+  gap: 10px;
+  padding: 6px 12px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: background 0.2s;
 }
 
-.user-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.user-trigger:hover {
+  background: #f5f5f5;
 }
 
 .user-name {
   font-size: 14px;
   font-weight: 500;
-  color: #5D4037;
+  color: #333;
 }
 
-.user-family {
+.family-name {
   font-size: 12px;
-  color: #9E9E9E;
+  color: #999;
+}
+
+.profile-info {
+  text-align: center;
+  padding: 4px 0;
+}
+
+.profile-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.profile-family {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.user-profile-item {
+  cursor: default;
 }
 
 .main-content {
-  background: #FFF8F0;
+  background: #f5f7fa;
   padding: 24px;
 }
 </style>
