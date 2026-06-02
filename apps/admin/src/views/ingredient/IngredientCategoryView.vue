@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadProps } from 'element-plus'
 
 interface Category {
   id?: number
@@ -11,6 +12,12 @@ interface Category {
   icon: string
   color: string
   aliases: string
+}
+
+interface TreeNode {
+  value: string
+  label: string
+  children?: TreeNode[]
 }
 
 const list = ref<Category[]>([])
@@ -39,6 +46,31 @@ const defaultCategories = [
   { name: '调味品', code: 'seasoning', parentCode: '', sortOrder: 8, icon: '🧂', color: '#A78BFA', aliases: '盐,酱油,醋' },
   { name: '其他', code: 'other', parentCode: '', sortOrder: 9, icon: '📦', color: '#6B7280', aliases: '' }
 ]
+
+const emojiOptions = [
+  '🍚', '🥚', '🥩', '🐟', '🥬', '🍎', '🥜', '🧂', '📦',
+  '🍞', '🧀', '🥛', '🍗', '🦐', '🥕', '🍌', '🥜', '🫒',
+  '🌾', '🥔', '🍠', '🌽', '🥑', '🍇', '🍊', '🍋', '🫐'
+]
+
+const showEmojiPicker = ref(false)
+
+const treeData = computed<TreeNode[]>(() => {
+  const topLevel = list.value.filter(item => !item.parentCode || item.parentCode === '')
+  return topLevel.map(item => buildTreeNode(item))
+})
+
+function buildTreeNode(item: Category): TreeNode {
+  const children = list.value.filter(child => child.parentCode === item.code)
+  const node: TreeNode = {
+    value: item.code,
+    label: item.name
+  }
+  if (children.length > 0) {
+    node.children = children.map(child => buildTreeNode(child))
+  }
+  return node
+}
 
 async function fetchData() {
   loading.value = true
@@ -137,6 +169,34 @@ function resetForm() {
     color: '#FF9F43',
     aliases: ''
   })
+  showEmojiPicker.value = false
+}
+
+function selectEmoji(emoji: string) {
+  form.icon = emoji
+  showEmojiPicker.value = false
+}
+
+const handleAvatarSuccess: UploadProps['onSuccess'] = (
+  response,
+  uploadFile
+) => {
+  form.icon = URL.createObjectURL(uploadFile.raw!)
+}
+
+function beforeUpload(rawFile: File) {
+  const isImage = rawFile.type.startsWith('image/')
+  const isLt2M = rawFile.size / 1024 / 1024 < 2
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return false
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB!')
+    return false
+  }
+  return true
 }
 
 onMounted(fetchData)
@@ -154,11 +214,17 @@ onMounted(fetchData)
     <el-table :data="list" v-loading="loading" border stripe style="width: 100%">
       <el-table-column label="图标" width="80" align="center">
         <template #default="{ row }">
-          <span class="icon-cell">{{ row.icon || '—' }}</span>
+          <img v-if="row.icon && row.icon.startsWith('http')" :src="row.icon" class="icon-img" />
+          <span v-else class="icon-cell">{{ row.icon || '—' }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="name" label="名称" min-width="120" />
       <el-table-column prop="code" label="编码" width="120" />
+      <el-table-column label="上级分类" width="120">
+        <template #default="{ row }">
+          {{ row.parentCode ? list.find(c => c.code === row.parentCode)?.name : '—' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
       <el-table-column label="颜色" width="100" align="center">
         <template #default="{ row }">
@@ -177,7 +243,7 @@ onMounted(fetchData)
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑分类' : '新增分类'"
-      width="520px"
+      width="600px"
       destroy-on-close
     >
       <el-form :model="form" label-width="90px">
@@ -188,13 +254,57 @@ onMounted(fetchData)
           <el-input v-model="form.code" placeholder="请输入英文编码" />
         </el-form-item>
         <el-form-item label="上级分类">
-          <el-input v-model="form.parentCode" placeholder="留空表示顶级分类" />
+          <el-tree-select
+            v-model="form.parentCode"
+            :data="treeData"
+            placeholder="留空表示顶级分类"
+            clearable
+            check-strictly
+            :render-after-expand="false"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999" />
         </el-form-item>
         <el-form-item label="图标">
-          <el-input v-model="form.icon" placeholder="输入emoji或图标名" />
+          <div class="icon-selector">
+            <div class="icon-preview-area">
+              <img v-if="form.icon && form.icon.startsWith('http')" :src="form.icon" class="preview-img" />
+              <span v-else class="preview-icon">{{ form.icon || '暂无图标' }}</span>
+            </div>
+            <div class="icon-actions">
+              <el-upload
+                class="avatar-uploader"
+                action="#"
+                :show-file-list="false"
+                :auto-upload="false"
+                :on-change="(file: any) => { if(beforeUpload(file.raw)) { form.icon = URL.createObjectURL(file.raw) } }"
+                accept="image/*"
+              >
+                <el-button size="small">上传图片</el-button>
+              </el-upload>
+              <el-button size="small" @click="showEmojiPicker = !showEmojiPicker">
+                选择 Emoji
+              </el-button>
+              <el-input
+                v-model="form.icon"
+                placeholder="或输入URL"
+                size="small"
+                style="width: 120px; margin-left: 8px"
+              />
+            </div>
+            <div v-if="showEmojiPicker" class="emoji-picker">
+              <div
+                v-for="emoji in emojiOptions"
+                :key="emoji"
+                class="emoji-item"
+                @click="selectEmoji(emoji)"
+              >
+                {{ emoji }}
+              </div>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="颜色">
           <el-color-picker v-model="form.color" />
@@ -237,6 +347,14 @@ onMounted(fetchData)
   font-size: 22px;
 }
 
+.icon-img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
 .color-block {
   display: inline-block;
   width: 28px;
@@ -244,5 +362,66 @@ onMounted(fetchData)
   border-radius: 6px;
   border: 1px solid #e5e7eb;
   vertical-align: middle;
+}
+
+.icon-selector {
+  width: 100%;
+}
+
+.icon-preview-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  background: #f5f7fa;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.preview-img {
+  max-width: 50px;
+  max-height: 50px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.preview-icon {
+  font-size: 28px;
+  color: #909399;
+}
+
+.icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.emoji-picker {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+}
+
+.emoji-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 22px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.emoji-item:hover {
+  background: #e6f7ff;
+  transform: scale(1.15);
 }
 </style>
