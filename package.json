@@ -1,0 +1,18 @@
+{
+  "name": "baby-breakfast",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:pwa": "npm run dev --workspace @baby-breakfast/pwa",
+    "dev:admin": "npm run dev --workspace @baby-breakfast/admin",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}

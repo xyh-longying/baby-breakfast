@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: baby-breakfast-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: baby_breakfast
+      MYSQL_USER: baby_breakfast
+      MYSQL_PASSWORD: baby_breakfast
+    ports:
+      - "3306:3306"
+    volumes:
+      - ../data/mysql:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    image: redis:7.2
+    container_name: baby-breakfast-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ../data/redis:/data
