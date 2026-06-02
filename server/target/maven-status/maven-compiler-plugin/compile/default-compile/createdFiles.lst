@@ -11,8 +11,8 @@ com/babybreakfast/auth/AuthController.class
 com/babybreakfast/category/dto/UpdateIngredientCategoryRequest.class
 com/babybreakfast/category/IngredientCategoryController.class
 com/babybreakfast/auth/AuthService.class
-com/babybreakfast/category/dto/CreateIngredientCategoryRequest.class
 com/babybreakfast/common/ApiResponse.class
+com/babybreakfast/category/dto/CreateIngredientCategoryRequest.class
 com/babybreakfast/auth/dto/FamilyMemberResponse.class
 com/babybreakfast/auth/dto/SwitchRoleRequest.class
 com/babybreakfast/member/MemberService.class
