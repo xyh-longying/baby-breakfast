@@ -4,6 +4,7 @@ import { authState, logout, switchCurrentRole } from './auth';
 
 const theme = computed(() => authState.theme.value);
 const session = computed(() => authState.state.session);
+const isLoggedIn = computed(() => !!session.value);
 
 async function onRoleChange(event: Event) {
   const nextRole = (event.target as HTMLSelectElement).value as 'parent' | 'child';
@@ -17,10 +18,9 @@ async function onRoleChange(event: Event) {
 </script>
 
 <template>
-  <div class="app-shell" :style="theme.cssVars">
-    <header class="topbar">
+  <div class="app-shell" :class="{ 'login-mode': !isLoggedIn }" :style="theme.cssVars">
+    <header v-if="isLoggedIn" class="topbar">
       <div>
-        <p class="eyebrow">Baby Breakfast</p>
         <h1>宝贝早餐</h1>
         <p v-if="session" class="subtitle">
           {{ session.user.displayName }} · {{ session.currentFamily.name }} · 当前成员 {{ session.currentMember.name }}
@@ -43,7 +43,7 @@ async function onRoleChange(event: Event) {
       </div>
     </header>
 
-    <nav v-if="session" class="tabs">
+    <nav v-if="isLoggedIn" class="tabs">
       <RouterLink to="/">今日早餐</RouterLink>
       <RouterLink to="/plan">一周计划</RouterLink>
       <RouterLink to="/members">家庭成员</RouterLink>
