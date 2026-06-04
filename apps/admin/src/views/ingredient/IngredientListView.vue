@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadFile } from 'element-plus'
 
 interface Ingredient {
   id?: number
@@ -13,14 +14,21 @@ interface Ingredient {
   tags: string
 }
 
-interface CategoryOption {
+interface CategoryItem {
   code: string
   name: string
+  parentCode: string | null
   color: string
 }
 
+interface TreeNode {
+  value: string
+  label: string
+  children?: TreeNode[]
+}
+
 const list = ref<Ingredient[]>([])
-const categories = ref<CategoryOption[]>([])
+const allCategories = ref<CategoryItem[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
@@ -36,11 +44,49 @@ const form = reactive<Ingredient>({
   tags: ''
 })
 
-const categoryMap = computed(() => {
-  const map: Record<string, CategoryOption> = {}
-  categories.value.forEach(c => { map[c.code] = c })
+// 分类名称映射
+const categoryNameMap = computed(() => {
+  const map: Record<string, string> = {}
+  allCategories.value.forEach(c => { map[c.code] = c.name })
   return map
 })
+
+// 分类颜色映射（用于标签显示）
+const categoryColorMap = computed(() => {
+  const map: Record<string, string> = {}
+  allCategories.value.forEach(c => { map[c.code] = c.color || '#E67E22' })
+  return map
+})
+
+// 判断分类颜色是否为浅色背景，需要深色文字
+function isLightColor(hex: string): boolean {
+  if (!hex || hex === '#FFFFFF' || hex === '#ffffff' || hex === '#FFF8DC' || hex === '#FEF3C7' || hex === '#F5DEB3' || hex === '#FFDAB9') return true
+  if (!hex) return true
+  // 计算亮度
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return (r * 299 + g * 587 + b * 114) / 1000 > 155
+}
+
+// 构建树形数据
+const treeData = computed<TreeNode[]>(() => {
+  const topLevel = allCategories.value.filter(c => !c.parentCode)
+  return topLevel.map(item => buildTreeNode(item))
+})
+
+function buildTreeNode(item: CategoryItem): TreeNode {
+  const children = allCategories.value.filter(c => c.parentCode === item.code)
+  const node: TreeNode = {
+    value: item.code,
+    label: item.name
+  }
+  if (children.length > 0) {
+    node.children = children.map(child => buildTreeNode(child))
+  }
+  return node
+}
 
 const filteredList = computed(() => {
   if (!filterCategory.value) return list.value
@@ -52,11 +98,7 @@ async function fetchCategories() {
     const res = await fetch('/api/ingredient-categories')
     if (res.ok) {
       const json = await res.json()
-      categories.value = json?.data && Array.isArray(json.data) ? json.data.map((c: { code: string; name: string; color: string }) => ({
-        code: c.code,
-        name: c.name,
-        color: c.color || '#FF9F43'
-      })) : []
+      allCategories.value = json?.data && Array.isArray(json.data) ? json.data : []
     }
   } catch {}
 }
@@ -158,6 +200,29 @@ function parseTags(tagsStr: string): string[] {
   return tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(Boolean) : []
 }
 
+// 判断是否为图片URL
+function isImageUrl(val: string): boolean {
+  if (!val) return false
+  return val.startsWith('http') || val.startsWith('blob:') || val.startsWith('data:')
+}
+
+// 处理图片上传
+function handleImageChange(uploadFile: UploadFile) {
+  const rawFile = uploadFile.raw
+  if (!rawFile) return
+  const isImage = rawFile.type.startsWith('image/')
+  const isLt2M = rawFile.size / 1024 / 1024 < 2
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB!')
+    return
+  }
+  form.imageUrl = URL.createObjectURL(rawFile)
+}
+
 onMounted(async () => {
   await fetchCategories()
   fetchData()
@@ -168,33 +233,38 @@ onMounted(async () => {
   <div class="page-container">
     <div class="page-header">
       <h2>食材列表</h2>
-      <el-button type="primary" @click="handleAdd">
+      <el-button class="btn-orange" @click="handleAdd">
         <span style="margin-right: 4px">+</span> 新增食材
       </el-button>
     </div>
 
     <div class="filter-bar">
-      <el-select v-model="filterCategory" placeholder="按分类筛选" clearable style="width: 200px" @change="fetchData">
-        <el-option
-          v-for="cat in categories"
-          :key="cat.code"
-          :label="cat.name"
-          :value="cat.code"
-        />
-      </el-select>
+      <el-tree-select
+        v-model="filterCategory"
+        :data="treeData"
+        placeholder="按分类筛选"
+        clearable
+        check-strictly
+        :render-after-expand="false"
+        style="width: 240px"
+        @change="fetchData"
+      />
     </div>
 
     <el-table :data="filteredList" v-loading="loading" border stripe style="width: 100%">
       <el-table-column prop="name" label="名称" min-width="120" />
-      <el-table-column label="分类" width="120" align="center">
+      <el-table-column label="分类" width="130" align="center">
         <template #default="{ row }">
-          <el-tag
-            v-if="categoryMap[row.categoryCode]"
-            :color="categoryMap[row.categoryCode].color"
-            style="color: #fff; border: none"
+          <span
+            v-if="categoryNameMap[row.categoryCode]"
+            class="category-tag"
+            :style="{
+              backgroundColor: categoryColorMap[row.categoryCode] || '#E67E22',
+              color: isLightColor(categoryColorMap[row.categoryCode]) ? '#333' : '#fff'
+            }"
           >
-            {{ categoryMap[row.categoryCode].name }}
-          </el-tag>
+            {{ categoryNameMap[row.categoryCode] }}
+          </span>
           <span v-else>{{ row.categoryCode }}</span>
         </template>
       </el-table-column>
@@ -249,14 +319,14 @@ onMounted(async () => {
           <el-input v-model="form.name" placeholder="请输入食材名称" />
         </el-form-item>
         <el-form-item label="分类" required>
-          <el-select v-model="form.categoryCode" placeholder="请选择分类" style="width: 100%">
-            <el-option
-              v-for="cat in categories"
-              :key="cat.code"
-              :label="cat.name"
-              :value="cat.code"
-            />
-          </el-select>
+          <el-tree-select
+            v-model="form.categoryCode"
+            :data="treeData"
+            placeholder="请选择分类"
+            style="width: 100%"
+            check-strictly
+            :render-after-expand="false"
+          />
         </el-form-item>
         <el-form-item label="单位">
           <el-input v-model="form.unit" placeholder="如 g、ml、个" style="width: 160px" />
@@ -264,8 +334,30 @@ onMounted(async () => {
         <el-form-item label="密度">
           <el-input-number v-model="form.density" :min="0.01" :max="9999" :precision="2" :step="0.1" />
         </el-form-item>
-        <el-form-item label="图片URL">
-          <el-input v-model="form.imageUrl" placeholder="请输入图片地址" />
+        <el-form-item label="图片">
+          <div class="icon-selector">
+            <div class="icon-preview-area">
+              <img v-if="isImageUrl(form.imageUrl)" :src="form.imageUrl" class="preview-img" />
+              <span v-else class="preview-icon">{{ form.imageUrl || '暂无图片' }}</span>
+            </div>
+            <div class="icon-actions">
+              <el-upload
+                action="#"
+                :show-file-list="false"
+                :auto-upload="false"
+                :on-change="handleImageChange"
+                accept="image/*"
+              >
+                <el-button size="small">上传图片</el-button>
+              </el-upload>
+              <el-input
+                v-model="form.imageUrl"
+                placeholder="或输入图片URL"
+                size="small"
+                style="width: 160px; margin-left: 8px"
+              />
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="别名">
           <el-input v-model="form.aliases" placeholder="多个别名用逗号分隔" />
@@ -276,7 +368,7 @@ onMounted(async () => {
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button class="btn-orange" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -304,7 +396,63 @@ onMounted(async () => {
   color: #1f2937;
 }
 
+/* 系统主题橙色按钮 */
+.btn-orange {
+  background-color: #E67E22 !important;
+  border-color: #E67E22 !important;
+  color: #fff !important;
+}
+
+.btn-orange:hover,
+.btn-orange:focus {
+  background-color: #D35400 !important;
+  border-color: #D35400 !important;
+}
+
 .filter-bar {
   margin-bottom: 16px;
+}
+
+/* 分类标签 - 根据背景自动调整字体颜色 */
+.category-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.icon-selector {
+  width: 100%;
+}
+
+.icon-preview-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  background: #f5f7fa;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.preview-img {
+  max-width: 50px;
+  max-height: 50px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.preview-icon {
+  font-size: 14px;
+  color: #909399;
+}
+
+.icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>
