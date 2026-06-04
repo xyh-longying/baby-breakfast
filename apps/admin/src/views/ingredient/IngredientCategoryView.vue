@@ -240,17 +240,15 @@ onMounted(fetchData)
       :default-expand-all="true"
       style="width: 100%"
     >
-      <!-- 图标列 -->
-      <el-table-column label="图标" width="80" align="center">
+      <!-- 名称+图标列（合并，避免树形展开图标遮挡） -->
+      <el-table-column label="分类名称" min-width="260">
         <template #default="{ row }">
-          <img v-if="isImageUrl(row.icon)" :src="row.icon" class="icon-img" />
-          <span v-else-if="row.icon" class="icon-cell">{{ row.icon }}</span>
-          <span v-else class="icon-empty">—</span>
+          <span class="name-with-icon">
+            <span v-if="row.icon" class="row-icon">{{ row.icon }}</span>
+            <span class="row-name">{{ row.name }}</span>
+          </span>
         </template>
       </el-table-column>
-
-      <!-- 名称列 -->
-      <el-table-column prop="name" label="名称" min-width="140" />
 
       <!-- 编码列 -->
       <el-table-column prop="code" label="编码" width="130" />
@@ -340,10 +338,10 @@ onMounted(fetchData)
 .btn-orange { background-color: #E67E22 !important; border-color: #E67E22 !important; color: #fff !important; }
 .btn-orange:hover, .btn-orange:focus { background-color: #D35400 !important; border-color: #D35400 !important; }
 
-/* 图标 */
-.icon-cell { font-size: 20px; }
-.icon-img { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; vertical-align: middle; }
-.icon-empty { color: #c0c4cc; }
+/* 图标+名称 */
+.name-with-icon { display: inline-flex; align-items: center; gap: 6px; }
+.row-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.row-name { font-size: 14px; }
 
 .color-block { display: inline-block; width: 24px; height: 24px; border-radius: 4px; border: 1px solid #e5e7eb; vertical-align: middle; }
 
