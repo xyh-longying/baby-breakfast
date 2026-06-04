@@ -169,7 +169,7 @@ onMounted(fetchData)
   <div class="page-container">
     <div class="page-header">
       <h2>成员管理</h2>
-      <el-button type="primary" @click="handleAdd">
+      <el-button class="btn-orange" @click="handleAdd">
         <span style="margin-right: 4px">+</span> 新增成员
       </el-button>
     </div>
@@ -333,7 +333,7 @@ onMounted(fetchData)
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button class="btn-orange" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -364,5 +364,16 @@ onMounted(fetchData)
 .form-row {
   display: flex;
   gap: 20px;
+}
+
+.btn-orange {
+  background-color: #E67E22 !important;
+  border-color: #E67E22 !important;
+  color: #fff !important;
+}
+.btn-orange:hover,
+.btn-orange:focus {
+  background-color: #D35400 !important;
+  border-color: #D35400 !important;
 }
 </style>
