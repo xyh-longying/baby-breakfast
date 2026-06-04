@@ -121,11 +121,33 @@ const selectedTreeKey = computed({
   }
 })
 
+// 递归获取某个分类及其所有后代子分类的 code 集合
+function getAllDescendantCodes(code: string): Set<string> {
+  const codes = new Set<string>([code])
+  // 直接找子分类
+  const children = allCategories.value.filter(c => c.parentCode === code)
+  for (const child of children) {
+    codes.add(child.code)
+    // 递归获取更深层级
+    const subCodes = getAllDescendantCodes(child.code)
+    subCodes.forEach(c => codes.add(c))
+  }
+  return codes
+}
+
+// 当前选中分类及其所有子分类的 code 集合
+const activeCategoryCodes = computed(() => {
+  if (!selectedCategoryCode.value) return new Set<string>()
+  return getAllDescendantCodes(selectedCategoryCode.value)
+})
+
 // 过滤 + 分页
 const filteredData = computed(() => {
   let data = list.value
   if (selectedCategoryCode.value) {
-    data = data.filter(item => item.categoryCode === selectedCategoryCode.value)
+    // 匹配当前分类及所有子分类下的食材
+    const codes = activeCategoryCodes.value
+    data = data.filter(item => codes.has(item.categoryCode))
   }
   if (searchKeyword.value.trim()) {
     const kw = searchKeyword.value.trim().toLowerCase()
@@ -159,10 +181,8 @@ async function fetchCategories() {
 async function fetchData() {
   loading.value = true
   try {
-    const url = selectedCategoryCode.value
-      ? `/api/ingredients?category=${selectedCategoryCode.value}`
-      : '/api/ingredients'
-    const res = await fetch(url)
+    // 始终获取全部食材，由前端 activeCategoryCodes 递归过滤
+    const res = await fetch('/api/ingredients')
     if (res.ok) {
       const json = await res.json()
       list.value = json?.data && Array.isArray(json.data) ? json.data : []
@@ -173,7 +193,24 @@ async function fetchData() {
 }
 
 function handleTreeNodeClick(data: TreeNode) {
-  selectedCategoryCode.value = data.code === '' ? '' : data.code
+  // __all__ 是全部分类根节点
+  if (data.id === '__all__') {
+    selectedCategoryCode.value = ''
+  } else {
+    selectedCategoryCode.value = data.code || ''
+  }
+  currentPage.value = 1
+  fetchData()
+}
+
+// 监听树当前节点变化（处理键盘导航等场景）
+function handleCurrentChange(data: TreeNode | null) {
+  if (!data) return
+  if (data.id === '__all__') {
+    selectedCategoryCode.value = ''
+  } else {
+    selectedCategoryCode.value = data.code || ''
+  }
   currentPage.value = 1
   fetchData()
 }
@@ -254,6 +291,7 @@ onMounted(async () => { await fetchCategories(); fetchData() })
         :default-expanded-keys="['__all__']"
         :current-node-key="selectedTreeKey"
         @node-click="handleTreeNodeClick"
+        @current-change="handleCurrentChange"
         class="category-tree"
       >
         <template #default="{ data }">
@@ -278,6 +316,9 @@ onMounted(async () => { await fetchCategories(); fetchData() })
         </span>
         <span v-else class="hint-tag" style="background-color: #E67E22; color: #fff;">📋 全部分类</span>
         <span class="hint-text">共 {{ total }} 条食材</span>
+        <span v-if="activeCategoryCodes.size > 1" class="hint-sub">
+          （含 {{ activeCategoryCodes.size }} 个子分类）
+        </span>
       </div>
 
       <el-table :data="pagedData" v-loading="loading" border stripe style="width: 100%">
@@ -403,6 +444,7 @@ onMounted(async () => { await fetchCategories(); fetchData() })
 .category-hint { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 8px 0; flex-shrink: 0; }
 .hint-tag { display: inline-block; padding: 2px 12px; border-radius: 4px; font-size: 13px; line-height: 22px; }
 .hint-text { font-size: 13px; color: #909399; }
+.hint-sub { font-size: 12px; color: #b0b0b0; margin-left: 4px; }
 .category-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 13px; line-height: 20px; white-space: nowrap; }
 
 :deep(.el-table) { flex: 1; overflow: auto; }
