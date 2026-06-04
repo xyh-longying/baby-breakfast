@@ -6,7 +6,9 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5174,
-    allowedHosts: ['.monkeycode-ai.online'],
+    // 允许所有域名访问（开发环境）
+    allowedHosts: true,
+    strictPort: false,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
