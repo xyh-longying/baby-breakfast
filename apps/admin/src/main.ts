@@ -19,8 +19,6 @@ import IngredientListView from './views/ingredient/IngredientListView.vue';
 import IngredientCategoryView from './views/ingredient/IngredientCategoryView.vue';
 import InventoryView from './views/ingredient/InventoryView.vue';
 import MemberListView from './views/member/MemberListView.vue';
-import MemberDietaryView from './views/member/MemberDietaryView.vue';
-import MemberPreferenceView from './views/member/MemberPreferenceView.vue';
 import AIModelView from './views/ai/AIModelView.vue';
 import AIPromptView from './views/ai/AIPromptView.vue';
 import AIRulesView from './views/ai/AIRulesView.vue';
@@ -55,8 +53,6 @@ const routes = [
       { path: 'ingredient/category', name: 'IngredientCategory', component: IngredientCategoryView, meta: { title: '食材分类' } },
       { path: 'ingredient/inventory', name: 'Inventory', component: InventoryView, meta: { title: '库存管理' } },
       { path: 'member/list', name: 'MemberList', component: MemberListView, meta: { title: '成员管理' } },
-      { path: 'member/dietary', name: 'MemberDietary', component: MemberDietaryView, meta: { title: '过敏忌口' } },
-      { path: 'member/preference', name: 'MemberPreference', component: MemberPreferenceView, meta: { title: '口味偏好' } },
       { path: 'ai/model', name: 'AIModel', component: AIModelView, meta: { title: '模型配置' } },
       { path: 'ai/prompt', name: 'AIPrompt', component: AIPromptView, meta: { title: 'Prompt 模板' } },
       { path: 'ai/rules', name: 'AIRules', component: AIRulesView, meta: { title: '推荐规则' } },

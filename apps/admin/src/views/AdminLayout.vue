@@ -79,8 +79,6 @@ const menuItems: MenuItem[] = [
     icon: h(UserIcon),
     children: [
       { path: '/member/list', label: '成员管理' },
-      { path: '/member/dietary', label: '过敏忌口' },
-      { path: '/member/preference', label: '口味偏好' },
     ],
   },
   {
