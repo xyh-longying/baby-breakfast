@@ -1,6 +1,7 @@
 /workspace/server/src/main/java/com/babybreakfast/BabyBreakfastApplication.java
 /workspace/server/src/main/java/com/babybreakfast/api/HealthController.java
 /workspace/server/src/main/java/com/babybreakfast/auth/AuthController.java
+/workspace/server/src/main/java/com/babybreakfast/auth/AuthException.java
 /workspace/server/src/main/java/com/babybreakfast/auth/AuthService.java
 /workspace/server/src/main/java/com/babybreakfast/auth/dto/AuthResponse.java
 /workspace/server/src/main/java/com/babybreakfast/auth/dto/FamilyMemberResponse.java
@@ -17,6 +18,16 @@
 /workspace/server/src/main/java/com/babybreakfast/common/FileUploadController.java
 /workspace/server/src/main/java/com/babybreakfast/config/SecurityConfig.java
 /workspace/server/src/main/java/com/babybreakfast/config/WebConfig.java
+/workspace/server/src/main/java/com/babybreakfast/dish/DishController.java
+/workspace/server/src/main/java/com/babybreakfast/dish/DishService.java
+/workspace/server/src/main/java/com/babybreakfast/dish/dto/CreateDishRequest.java
+/workspace/server/src/main/java/com/babybreakfast/dish/dto/DishDTO.java
+/workspace/server/src/main/java/com/babybreakfast/dish/dto/UpdateDishRequest.java
+/workspace/server/src/main/java/com/babybreakfast/dishcategory/DishCategoryController.java
+/workspace/server/src/main/java/com/babybreakfast/dishcategory/DishCategoryService.java
+/workspace/server/src/main/java/com/babybreakfast/dishcategory/dto/CreateDishCategoryRequest.java
+/workspace/server/src/main/java/com/babybreakfast/dishcategory/dto/DishCategoryDTO.java
+/workspace/server/src/main/java/com/babybreakfast/dishcategory/dto/UpdateDishCategoryRequest.java
 /workspace/server/src/main/java/com/babybreakfast/ingredient/IngredientController.java
 /workspace/server/src/main/java/com/babybreakfast/ingredient/IngredientService.java
 /workspace/server/src/main/java/com/babybreakfast/ingredient/dto/CreateIngredientRequest.java
@@ -27,3 +38,8 @@
 /workspace/server/src/main/java/com/babybreakfast/member/dto/CreateMemberRequest.java
 /workspace/server/src/main/java/com/babybreakfast/member/dto/MemberDTO.java
 /workspace/server/src/main/java/com/babybreakfast/member/dto/UpdateMemberRequest.java
+/workspace/server/src/main/java/com/babybreakfast/recipe/RecipeController.java
+/workspace/server/src/main/java/com/babybreakfast/recipe/RecipeService.java
+/workspace/server/src/main/java/com/babybreakfast/recipe/dto/CreateRecipeRequest.java
+/workspace/server/src/main/java/com/babybreakfast/recipe/dto/RecipeDTO.java
+/workspace/server/src/main/java/com/babybreakfast/recipe/dto/UpdateRecipeRequest.java

@@ -5,6 +5,7 @@ import com.babybreakfast.auth.dto.LoginRequest;
 import com.babybreakfast.auth.dto.SwitchRoleRequest;
 import com.babybreakfast.common.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,5 +35,10 @@ public class AuthController {
     @PostMapping("/switch-role")
     public ApiResponse<AuthResponse> switchRole(@Valid @RequestBody SwitchRoleRequest request) {
         return ApiResponse.success(authService.switchRole(request));
+    }
+
+    @ExceptionHandler(AuthException.class)
+    public ApiResponse<Void> handleAuthException(AuthException e) {
+        return ApiResponse.error(e.getMessage());
     }
 }
