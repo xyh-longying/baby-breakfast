@@ -19,6 +19,7 @@ interface CategoryItem {
   name: string
   parentCode: string | null
   color: string
+  sortOrder?: number
 }
 
 interface TreeNode {
@@ -35,11 +36,8 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 
-// 当前选中的分类code（默认全部）
 const selectedCategoryCode = ref<string>('')
-// 搜索关键词
 const searchKeyword = ref('')
-// 分页
 const currentPage = ref(1)
 const pageSize = ref(10)
 
@@ -53,21 +51,19 @@ const form = reactive<Ingredient>({
   tags: ''
 })
 
-// 分类名称映射
+// 分类名称/颜色映射
 const categoryNameMap = computed(() => {
   const map: Record<string, string> = {}
   allCategories.value.forEach(c => { map[c.code] = c.name })
   return map
 })
 
-// 分类颜色映射
 const categoryColorMap = computed(() => {
   const map: Record<string, string> = {}
   allCategories.value.forEach(c => { map[c.code] = c.color || '#E67E22' })
   return map
 })
 
-// 判断颜色是否为浅色背景
 function isLightColor(hex: string): boolean {
   if (!hex) return true
   const whiteList = ['#FFFFFF', '#ffffff', '#FFF8DC', '#FEF3C7', '#F5DEB3', '#FFDAB9', '#FAEBD7']
@@ -80,18 +76,22 @@ function isLightColor(hex: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 155
 }
 
-// 构建树形数据（用于左侧树形导航）
+// ===== 左侧导航树（含"全部分类"根节点） =====
 const treeData = computed<TreeNode[]>(() => {
-  // 添加"全部分类"根节点
   const allNode: TreeNode = { id: '__all__', label: '📋 全部分类', code: '', color: '#E67E22' }
   const topLevel = allCategories.value.filter(c => !c.parentCode).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
   allNode.children = topLevel.map(item => buildTreeNode(item))
   return [allNode]
 })
 
+// ===== 弹窗选择树（不含"全部分类"，只有实际分类） =====
+const dialogTreeData = computed<TreeNode[]>(() => {
+  const topLevel = allCategories.value.filter(c => !c.parentCode).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+  return topLevel.map(item => buildTreeNode(item))
+})
+
 function buildTreeNode(item: CategoryItem): TreeNode {
   const children = allCategories.value.filter(c => c.parentCode === item.code).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-  // 根据图标或名称添加emoji前缀
   let prefix = ''
   if (!item.parentCode) {
     const iconMap: Record<string, string> = {
@@ -112,9 +112,8 @@ function buildTreeNode(item: CategoryItem): TreeNode {
   return node
 }
 
-// 当前树选中的key（支持"全部分类"节点）
 const selectedTreeKey = computed({
-  get: () => selectedCategory.value ? selectedCategory.value : '__all__',
+  get: () => selectedCategoryCode.value || '__all__',
   set: (val: string) => {
     selectedCategoryCode.value = val === '__all__' ? '' : val
     currentPage.value = 1
@@ -122,19 +121,12 @@ const selectedTreeKey = computed({
   }
 })
 
-// 当前选中分类对象
-const selectedCategory = computed(() => {
-  return selectedTreeKey.value
-})
-
-// 过滤后的数据（搜索 + 分类筛选）
+// 过滤 + 分页
 const filteredData = computed(() => {
   let data = list.value
-  // 分类筛选
   if (selectedCategoryCode.value) {
     data = data.filter(item => item.categoryCode === selectedCategoryCode.value)
   }
-  // 关键词搜索
   if (searchKeyword.value.trim()) {
     const kw = searchKeyword.value.trim().toLowerCase()
     data = data.filter(item =>
@@ -145,7 +137,6 @@ const filteredData = computed(() => {
   return data
 })
 
-// 分页数据
 const pagedData = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return filteredData.value.slice(start, start + pageSize.value)
@@ -153,11 +144,7 @@ const pagedData = computed(() => {
 
 const total = computed(() => filteredData.value.length)
 
-// 监听分类变化重新获取数据
-watch(selectedCategoryCode, () => {
-  currentPage.value = 1
-  fetchData()
-})
+watch(selectedCategoryCode, () => { currentPage.value = 1; fetchData() })
 
 async function fetchCategories() {
   try {
@@ -193,95 +180,53 @@ function handleTreeNodeClick(data: TreeNode) {
 
 function handleAdd() {
   resetForm()
-  // 默认选中当前分类
-  if (selectedCategoryCode.value) {
-    form.categoryCode = selectedCategoryCode.value
-  }
+  if (selectedCategoryCode.value) form.categoryCode = selectedCategoryCode.value
   dialogVisible.value = true
 }
 
 function handleEdit(row: Ingredient) {
   editingId.value = row.id ?? null
   Object.assign(form, {
-    name: row.name,
-    categoryCode: row.categoryCode,
-    unit: row.unit,
-    density: row.density,
-    imageUrl: row.imageUrl,
-    aliases: row.aliases,
-    tags: row.tags
+    name: row.name, categoryCode: row.categoryCode, unit: row.unit,
+    density: row.density, imageUrl: row.imageUrl, aliases: row.aliases, tags: row.tags
   })
   dialogVisible.value = true
 }
 
 async function handleDelete(row: Ingredient) {
   try {
-    await ElMessageBox.confirm(`确认删除食材「${row.name}」？`, '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    if (row.id) {
-      await fetch(`/api/ingredients/${row.id}`, { method: 'DELETE' })
-    }
+    await ElMessageBox.confirm(`确认删除食材「${row.name}」？`, '提示', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
+    if (row.id) await fetch(`/api/ingredients/${row.id}`, { method: 'DELETE' })
     list.value = list.value.filter(item => item.id !== row.id)
     ElMessage.success('删除成功')
   } catch {}
 }
 
 async function handleSubmit() {
-  if (!form.name || !form.categoryCode) {
-    ElMessage.warning('请填写名称和选择分类')
-    return
-  }
+  if (!form.name || !form.categoryCode) { ElMessage.warning('请填写名称和选择分类'); return }
   try {
     if (editingId.value) {
-      await fetch(`/api/ingredients/${editingId.value}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      })
+      await fetch(`/api/ingredients/${editingId.value}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
       const idx = list.value.findIndex(item => item.id === editingId.value)
-      if (idx !== -1) {
-        list.value[idx] = { ...list.value[idx], ...form }
-      }
+      if (idx !== -1) list.value[idx] = { ...list.value[idx], ...form }
     } else {
-      const res = await fetch('/api/ingredients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      })
+      const res = await fetch('/api/ingredients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
       const data = await res.json()
       list.value.push({ ...form, id: data.id ?? Date.now() })
     }
     ElMessage.success(editingId.value ? '编辑成功' : '新增成功')
     dialogVisible.value = false
-  } catch {
-    ElMessage.error('操作失败')
-  }
+  } catch { ElMessage.error('操作失败') }
 }
 
 function resetForm() {
   editingId.value = null
-  Object.assign(form, {
-    name: '',
-    categoryCode: '',
-    unit: 'g',
-    density: 1,
-    imageUrl: '',
-    aliases: '',
-    tags: ''
-  })
+  Object.assign(form, { name: '', categoryCode: '', unit: 'g', density: 1, imageUrl: '', aliases: '', tags: '' })
 }
 
-function parseTags(tagsStr: string): string[] {
-  return tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(Boolean) : []
-}
+function parseTags(tagsStr: string): string[] { return tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(Boolean) : [] }
 
-function isImageUrl(val: string): boolean {
-  if (!val) return false
-  return val.startsWith('http') || val.startsWith('blob:') || val.startsWith('data:')
-}
+function isImageUrl(val: string): boolean { return !!val && (/^https?:/.test(val) || val.startsWith('blob:') || val.startsWith('data:')) }
 
 function handleImageChange(uploadFile: UploadFile) {
   const rawFile = uploadFile.raw
@@ -291,19 +236,14 @@ function handleImageChange(uploadFile: UploadFile) {
   form.imageUrl = URL.createObjectURL(rawFile)
 }
 
-function handlePageChange(page: number) {
-  currentPage.value = page
-}
+function handlePageChange(page: number) { currentPage.value = page }
 
-onMounted(async () => {
-  await fetchCategories()
-  fetchData()
-})
+onMounted(async () => { await fetchCategories(); fetchData() })
 </script>
 
 <template>
   <div class="page-layout">
-    <!-- 左侧：分类树 -->
+    <!-- 左侧分类树 -->
     <div class="left-panel">
       <div class="tree-header">食材分类</div>
       <el-tree
@@ -317,55 +257,34 @@ onMounted(async () => {
         class="category-tree"
       >
         <template #default="{ data }">
-          <span class="tree-node-label" :class="{ 'is-active': selectedTreeKey === data.id }">
-            {{ data.label }}
-          </span>
+          <span class="tree-node-label">{{ data.label }}</span>
         </template>
       </el-tree>
     </div>
 
-    <!-- 右侧：食材列表 -->
+    <!-- 右侧食材列表 -->
     <div class="right-panel">
       <div class="panel-header">
         <h2>食材列表</h2>
         <div class="header-actions">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索食材名称..."
-            prefix-icon="Search"
-            clearable
-            style="width: 220px; margin-right: 12px"
-          />
-          <el-button class="btn-orange" @click="handleAdd">
-            <span style="margin-right: 4px">+</span> 新增食材
-          </el-button>
+          <el-input v-model="searchKeyword" placeholder="搜索食材名称..." prefix-icon="Search" clearable style="width: 220px; margin-right: 12px" />
+          <el-button class="btn-orange" @click="handleAdd"><span style="margin-right: 4px">+</span> 新增食材</el-button>
         </div>
       </div>
 
-      <!-- 当前分类提示 -->
-      <div class="category-hint" v-if="selectedCategoryCode">
-        <span class="hint-tag" :style="{ backgroundColor: categoryColorMap[selectedCategoryCode] || '#E67E22', color: isLightColor(categoryColorMap[selectedCategoryCode]) ? '#333' : '#fff' }">
+      <div class="category-hint">
+        <span v-if="selectedCategoryCode" class="hint-tag" :style="{ backgroundColor: categoryColorMap[selectedCategoryCode] || '#E67E22', color: isLightColor(categoryColorMap[selectedCategoryCode]) ? '#333' : '#fff' }">
           {{ categoryNameMap[selectedCategoryCode] || selectedCategoryCode }}
         </span>
-        <span class="hint-text">共 {{ total }} 条食材</span>
-      </div>
-      <div class="category-hint" v-else>
-        <span class="hint-tag" style="background-color: #E67E22; color: #fff;">📋 全部分类</span>
+        <span v-else class="hint-tag" style="background-color: #E67E22; color: #fff;">📋 全部分类</span>
         <span class="hint-text">共 {{ total }} 条食材</span>
       </div>
 
       <el-table :data="pagedData" v-loading="loading" border stripe style="width: 100%">
         <el-table-column prop="name" label="名称" min-width="120" />
-        <el-table-column label="分类" width="120" align="center">
+        <el-table-column label="分类" width="130" align="center">
           <template #default="{ row }">
-            <span
-              v-if="categoryNameMap[row.categoryCode]"
-              class="category-tag"
-              :style="{
-                backgroundColor: categoryColorMap[row.categoryCode] || '#E67E22',
-                color: isLightColor(categoryColorMap[row.categoryCode]) ? '#333' : '#fff'
-              }"
-            >
+            <span v-if="categoryNameMap[row.categoryCode]" class="category-tag" :style="{ backgroundColor: categoryColorMap[row.categoryCode] || '#E67E22', color: isLightColor(categoryColorMap[row.categoryCode]) ? '#333' : '#fff' }">
               {{ categoryNameMap[row.categoryCode] }}
             </span>
             <span v-else>{{ row.categoryCode }}</span>
@@ -374,9 +293,7 @@ onMounted(async () => {
         <el-table-column prop="unit" label="单位" width="70" align="center" />
         <el-table-column prop="density" label="密度(g/ml)" width="100" align="center" />
         <el-table-column label="别名" min-width="130" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ Array.isArray(row.aliases) ? row.aliases.join(', ') : (row.aliases || '—') }}
-          </template>
+          <template #default="{ row }">{{ Array.isArray(row.aliases) ? row.aliases.join(', ') : (row.aliases || '—') }}</template>
         </el-table-column>
         <el-table-column label="标签" min-width="160">
           <template #default="{ row }">
@@ -411,32 +328,24 @@ onMounted(async () => {
       </div>
 
       <!-- 弹窗 -->
-      <el-dialog
-        v-model="dialogVisible"
-        :title="editingId ? '编辑食材' : '新增食材'"
-        width="560px"
-        destroy-on-close
-      >
+      <el-dialog v-model="dialogVisible" :title="editingId ? '编辑食材' : '新增食材'" width="560px" destroy-on-close>
         <el-form :model="form" label-width="90px">
-          <el-form-item label="名称" required>
-            <el-input v-model="form.name" placeholder="请输入食材名称" />
-          </el-form-item>
+          <el-form-item label="名称" required><el-input v-model="form.name" placeholder="请输入食材名称" /></el-form-item>
           <el-form-item label="分类" required>
             <el-tree-select
               v-model="form.categoryCode"
-              :data="treeData"
+              :data="dialogTreeData"
               placeholder="请选择分类"
               style="width: 100%"
               check-strictly
+              filterable
               :render-after-expand="false"
+              :props="{ label: 'label', value: 'code', children: 'children' }"
+              node-key="id"
             />
           </el-form-item>
-          <el-form-item label="单位">
-            <el-input v-model="form.unit" placeholder="如 g、ml、个" style="width: 160px" />
-          </el-form-item>
-          <el-form-item label="密度">
-            <el-input-number v-model="form.density" :min="0.01" :max="9999" :precision="2" :step="0.1" />
-          </el-form-item>
+          <el-form-item label="单位"><el-input v-model="form.unit" placeholder="如 g、ml、个" style="width: 160px" /></el-form-item>
+          <el-form-item label="密度"><el-input-number v-model="form.density" :min="0.01" :max="9999" :precision="2" :step="0.1" /></el-form-item>
           <el-form-item label="图片">
             <div class="icon-selector">
               <div class="icon-preview-area">
@@ -451,12 +360,8 @@ onMounted(async () => {
               </div>
             </div>
           </el-form-item>
-          <el-form-item label="别名">
-            <el-input v-model="form.aliases" placeholder="多个别名用逗号分隔" />
-          </el-form-item>
-          <el-form-item label="标签">
-            <el-input v-model="form.tags" placeholder="多个标签用逗号分隔" />
-          </el-form-item>
+          <el-form-item label="别名"><el-input v-model="form.aliases" placeholder="多个别名用逗号分隔" /></el-form-item>
+          <el-form-item label="标签"><el-input v-model="form.tags" placeholder="多个标签用逗号分隔" /></el-form-item>
         </el-form>
         <template #footer>
           <el-button @click="dialogVisible = false">取消</el-button>
@@ -468,180 +373,56 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.page-layout {
-  display: flex;
-  gap: 20px;
-  height: calc(100vh - 120px);
-  min-height: 500px;
-}
+.page-layout { display: flex; gap: 20px; height: calc(100vh - 120px); min-height: 500px; }
 
-/* 左侧分类树 */
 .left-panel {
-  width: 240px;
-  flex-shrink: 0;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  width: 240px; flex-shrink: 0; background: #fff;
+  border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.04);
+  display: flex; flex-direction: column; overflow: hidden;
 }
+.tree-header { padding: 16px 16px 12px; font-size: 15px; font-weight: 600; color: #1f2937; border-bottom: 1px solid #f0f0f0; }
+.category-tree { flex: 1; overflow-y: auto; padding: 8px 0; }
 
-.tree-header {
-  padding: 16px 16px 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2937;
-  border-bottom: 1px solid #f0f0f0;
+:deep(.el-tree-node__content) { height: 36px; border-radius: 6px; margin: 1px 4px; }
+:deep(.el-tree-node__content:hover) { background-color: #f5f7fa !important; }
+:deep(.el-tree-node.is-current > .el-tree-node__content) { background-color: #fef3e6 !important; color: #E67E22; }
+.tree-node-label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+
+.right-panel {
+  flex: 1; background: #fff; border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.04); padding: 20px 24px;
+  display: flex; flex-direction: column; overflow: hidden;
 }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
+.panel-header h2 { margin: 0; font-size: 20px; font-weight: 600; color: #1f2937; }
+.header-actions { display: flex; align-items: center; }
 
-.category-tree {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
+.btn-orange { background-color: #E67E22 !important; border-color: #E67E22 !important; color: #fff !important; }
+.btn-orange:hover, .btn-orange:focus { background-color: #D35400 !important; border-color: #D35400 !important; }
+
+.category-hint { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 8px 0; flex-shrink: 0; }
+.hint-tag { display: inline-block; padding: 2px 12px; border-radius: 4px; font-size: 13px; line-height: 22px; }
+.hint-text { font-size: 13px; color: #909399; }
+.category-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 13px; line-height: 20px; white-space: nowrap; }
+
+:deep(.el-table) { flex: 1; overflow: auto; }
+
+/* 分页 - 橙色主题 */
+.pagination-wrap { display: flex; justify-content: flex-end; padding-top: 16px; flex-shrink: 0; }
+:deep(.el-pagination.is-background .el-pager li.is-active) {
+  background-color: #E67E22 !important;
+  border-color: #E67E22 !important;
 }
-
-/* 自定义树节点样式 */
-:deep(.el-tree-node__content) {
-  height: 36px;
-  border-radius: 6px;
-  margin: 1px 4px;
+:deep(.el-pagination.is-background .el-pager li:hover:not(.is-active)) {
+  color: #E67E22;
 }
-
-:deep(.el-tree-node__content:hover) {
-  background-color: #f5f7fa !important;
-}
-
-:deep(.el-tree-node.is-current > .el-tree-node__content) {
-  background-color: #fef3e6 !important;
+:deep(.el-pagination .btn-prev:hover),
+:deep(.el-pagination .btn-next:hover) {
   color: #E67E22;
 }
 
-.tree-node-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
-
-.tree-icon-all {
-  font-size: 16px;
-}
-
-.tree-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #ccc;
-  flex-shrink: 0;
-}
-
-.tree-leaf-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-/* 右侧内容区 */
-.right-panel {
-  flex: 1;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  flex-shrink: 0;
-}
-
-.panel-header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-}
-
-/* 橙色按钮 */
-.btn-orange {
-  background-color: #E67E22 !important;
-  border-color: #E67E22 !important;
-  color: #fff !important;
-}
-.btn-orange:hover, .btn-orange:focus {
-  background-color: #D35400 !important;
-  border-color: #D35400 !important;
-}
-
-/* 分类提示条 */
-.category-hint {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-  padding: 8px 0;
-  flex-shrink: 0;
-}
-
-.hint-tag {
-  display: inline-block;
-  padding: 2px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-  line-height: 22px;
-}
-
-.hint-text {
-  font-size: 13px;
-  color: #909399;
-}
-
-/* 分类标签 */
-.category-tag {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 4px;
-  font-size: 13px;
-  line-height: 20px;
-  white-space: nowrap;
-}
-
-/* 表格区域 */
-:deep(.el-table) {
-  flex: 1;
-  overflow: auto;
-}
-
-/* 分页 */
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 16px;
-  flex-shrink: 0;
-}
-
-/* 图片上传 */
 .icon-selector { width: 100%; }
-.icon-preview-area {
-  display: flex; align-items: center; justify-content: center;
-  height: 60px; background: #f5f7fa; border: 1px dashed #dcdfe6;
-  border-radius: 6px; margin-bottom: 10px;
-}
+.icon-preview-area { display: flex; align-items: center; justify-content: center; height: 60px; background: #f5f7fa; border: 1px dashed #dcdfe6; border-radius: 6px; margin-bottom: 10px; }
 .preview-img { max-width: 50px; max-height: 50px; object-fit: contain; border-radius: 4px; }
 .preview-icon { font-size: 14px; color: #909399; }
 .icon-actions { display: flex; align-items: center; gap: 8px; }

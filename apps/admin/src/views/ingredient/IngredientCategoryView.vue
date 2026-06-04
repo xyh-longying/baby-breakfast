@@ -24,6 +24,8 @@ const list = ref<Category[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
+const currentPage = ref(1)
+const pageSize = ref(12)
 
 const form = reactive<Category>({
   name: '',
@@ -206,6 +208,14 @@ function handleImageChange(uploadFile: UploadFile) {
 }
 
 onMounted(fetchData)
+
+// 分页
+const total = computed(() => list.value.length)
+const pagedData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return list.value.slice(start, start + pageSize.value)
+})
+function handlePageChange(page: number) { currentPage.value = page }
 </script>
 
 <template>
@@ -217,7 +227,7 @@ onMounted(fetchData)
       </el-button>
     </div>
 
-    <el-table :data="list" v-loading="loading" border stripe style="width: 100%">
+    <el-table :data="pagedData" v-loading="loading" border stripe style="width: 100%">
       <el-table-column label="图标" width="80" align="center">
         <template #default="{ row }">
           <img v-if="isImageUrl(row.icon)" :src="row.icon" class="icon-img" />
@@ -245,6 +255,19 @@ onMounted(fetchData)
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 分页 -->
+    <div class="pagination-wrap">
+      <el-pagination
+        v-model:current-page="currentPage"
+        :page-size="pageSize"
+        :total="total"
+        layout="total, prev, pager, next, jumper"
+        :pager-count="5"
+        background
+        @current-change="handlePageChange"
+      />
+    </div>
 
     <el-dialog
       v-model="dialogVisible"
@@ -443,4 +466,14 @@ onMounted(fetchData)
   background: #e6f7ff;
   transform: scale(1.15);
 }
+
+/* 分页 - 橙色主题 */
+.pagination-wrap { display: flex; justify-content: flex-end; padding-top: 16px; }
+:deep(.el-pagination.is-background .el-pager li.is-active) {
+  background-color: #E67E22 !important;
+  border-color: #E67E22 !important;
+}
+:deep(.el-pagination.is-background .el-pager li:hover:not(.is-active)) { color: #E67E22; }
+:deep(.el-pagination .btn-prev:hover),
+:deep(.el-pagination .btn-next:hover) { color: #E67E22; }
 </style>
